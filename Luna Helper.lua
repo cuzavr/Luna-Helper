@@ -7,7 +7,7 @@
 script_name("Luna Helper")
 script_author("cuzavr")
 script_description("Помощник для игры на Pears Project")
-script_version("v0.4.1")
+script_version("v0.4")
 
 -- Кодировка
 local encoding = require 'encoding'
@@ -22,7 +22,6 @@ local mainIni = inicfg.load({ -- Дефолт значения в конфиге
     config = {
         password = 'nopassword', -- Пароль от аккаунта (Для автологина)
         google = 'nogoogle', -- 2FA от аккаунта (Для автологина)
-        autoupdate = 1, -- Автообновление скрипта, 0 - выкл, 1 - вкл
 
         login = 0, -- Автологин, 0 - выкл, 1 - вкл
         autofuel = 0, -- Автозаправка, 0 - выкл, 1 - вкл
@@ -32,10 +31,6 @@ local mainIni = inicfg.load({ -- Дефолт значения в конфиге
         autostokolvo = 999 -- Для автопочинки в Автосервисе, если сток хп и меньше то чинит
     }
 }, 'Luna Helper.ini')
-
--- https://github.com/qrlk/moonloader-script-updater
-local autoupdate_loaded = false
-local Update = nil
 
 -- Для 2FA
 local sha1 = require('sha1')
@@ -50,8 +45,6 @@ local commands = {
     ["/luna"] = {
         action = function()
             lua_thread.create(function()
-                -- Автообновление скрипта
-                local autoupdateStatus = mainIni.config.autoupdate == 1 and "{00ff00}[ON]" or "{FF0000}[OFF]"
                 -- Автологин
                 local autoLoginStatus = mainIni.config.login == 1 and "{00ff00}[ON]" or "{FF0000}[OFF]"
                 -- Автозаправка
@@ -68,44 +61,34 @@ local commands = {
 
                 local dialogText = 
                 "{cecece}Команды Скрипта\n" ..
-                "{cccccc}/luna {FFFFFF}- Меню скрипта.\n" ..
-                "{cccccc}/lunard {FFFFFF}- Перезагрузить скрипт.\n" ..
-                "{cccccc}/lunabb {FFFFFF}- Отгрузить скрипт.\n" ..
-                "{cccccc}/lunacf {FFFFFF}- Сбросить конфиг скрипта.\n" ..
-                "{cccccc}/lunaupdate {FFFFFF}- Обновить скрипт.\n" ..
+                "{cd70ff}/luna {FFFFFF}- Меню скрипта.\n" ..
+                "{cd70ff}/lunard {FFFFFF}- Перезагрузить скрипт.\n" ..
+                "{cd70ff}/lunabb {FFFFFF}- Отгрузить скрипт.\n" ..
+                "{cd70ff}/lunacf {FFFFFF}- Сбросить конфиг скрипта.\n" ..
 
-                "\n{cccccc}/lunaau {FFFFFF}- Включить/Выключить автообновление скрипта.\n" ..
-                "{cccccc}/lunalg {FFFFFF}- Включить/Выключить автологин.\n" ..
-                "{cccccc}/lunaaf {FFFFFF}- Включить/Выключить автозаправку.\n" ..
-                "{cccccc}/lunaas {FFFFFF}- Включить/Выключить автопочинку в Автосервисе.\n" ..
-                "{cccccc}/lunaask {FFFFFF}- Изменить кол-во хп в автопочинке, чтобы при таком и меньше чинилось.\n" ..
-                "{cccccc}/lunaaske {FFFFFF}- Включить/Выключить Автовыход после Автопочинки.\n" ..
+                "\n{cd70ff}/lunalg {FFFFFF}- Включить/Выключить автологин.\n" ..
+                "{cd70ff}/lunaaf {FFFFFF}- Включить/Выключить автозаправку.\n" ..
+                "{cd70ff}/lunaas {FFFFFF}- Включить/Выключить автопочинку в Автосервисе.\n" ..
+                "{cd70ff}/lunaask {FFFFFF}- Изменить кол-во хп в автопочинке, чтобы при таком и меньше чинилось.\n" ..
+                "{cd70ff}/lunaaske {FFFFFF}- Включить/Выключить Автовыход после Автопочинки.\n" ..
 
-                "\n{cccccc}/lunalock {FFFFFF}- Включить/Выключить функцию открытия/закрытия транспорта на клавишу {FF9000}[L]\n" ..
+                "\n{cd70ff}/lunalock {FFFFFF}- Включить/Выключить функцию открытия/закрытия транспорта на клавишу {FF9000}[L]\n" ..
 
-                "\n{cccccc}/lunapass {FFFFFF}- Изменить пароль для автологина.\n" ..
-                "{cccccc}/lunagoogle {FFFFFF}- Изменить 2FA для автологина.\n" ..
+                "\n{cd70ff}/lunapass {FFFFFF}- Изменить пароль для автологина.\n" ..
+                "{cd70ff}/lunagoogle {FFFFFF}- Изменить 2FA для автологина.\n" ..
 
                 "{cecece}\nВаши Настройки\n" ..
-                "{cccccc}Автообновление скрипта " .. autoupdateStatus .. "\n" ..
-                "{cccccc}Автологин " .. autoLoginStatus .. "\n" ..
-                "{cccccc}Автозаправка " .. autoFuelStatus .. "\n" ..
-                "{cccccc}Автопочинка в Автосервисе " .. autoStoStatus .. "\n" ..
-                "{cccccc}Автовыход с Автосервиса после Автопочинки " .. autoStoExitStatus .. "\n" ..
-                "{cccccc}Открытие/Закрытие транспорта при нажатии на клавишу L " .. lockvehicleStatus .. "\n" ..
+                "{cd70ff}Автологин " .. autoLoginStatus .. "\n" ..
+                "{cd70ff}Автозаправка " .. autoFuelStatus .. "\n" ..
+                "{cd70ff}Автопочинка в Автосервисе " .. autoStoStatus .. "\n" ..
+                "{cd70ff}Автовыход с Автосервиса после Автопочинки " .. autoStoExitStatus .. "\n" ..
+                "{cd70ff}Открытие/Закрытие транспорта при нажатии на клавишу L " .. lockvehicleStatus .. "\n" ..
 
-                "\n{cccccc}Пароль " .. password .. "\n" ..
-                "{cccccc}2FA " .. google .. "\n" ..
-                "{cccccc}ХП для Автопочинки в Автосервисе {FF9000}[" .. autostokolvoStatus .. "]\n"
+                "\n{cd70ff}Пароль " .. password .. "\n" ..
+                "{cd70ff}2FA " .. google .. "\n" ..
+                "{cd70ff}ХП для Автопочинки в Автосервисе {FF9000}[" .. autostokolvoStatus .. "]\n"
 
                 sampShowDialog(1, "{FF9000}Luna Helper v0.4", dialogText, "ОК", "", 0)
-            end)
-        end
-    },
-    ["/lunaupdate"] = {
-        action = function()
-            lua_thread.create(function()
-                LunaUpdate()
             end)
         end
     },
@@ -119,7 +102,7 @@ local commands = {
     ["/lunabb"] = {
         action = function()
             lua_thread.create(function()
-                sampAddChatMessage("{cccccc}[Luna Helper] {FFFFFF}Скрипт {FF0000}[Отгружен]", 0xcececeFF)
+                sampAddChatMessage("{cd70ff}[Luna Helper] {FFFFFF}Скрипт {FF0000}[Отгружен]", 0xcececeFF)
                 thisScript():unload()
             end)
         end
@@ -135,32 +118,17 @@ local commands = {
     },
 
     -- Конфиг Скрипта
-    ["/lunaau"] = { -- Автообновление скрипта включить/выключить
-        action = function()
-            lua_thread.create(function()
-                if mainIni.config.autoupdate == 0 then -- Если выключен, включаем и сохраняем конфиг
-                    mainIni.config.autoupdate = 1
-                    inicfg.save(mainIni, "Luna Helper.ini")
-                    sampAddChatMessage("{cccccc}[Luna Helper] {FFFFFF}Автообновление скрипта {00ff00}[ON]", 0xcececeFF)
-                elseif mainIni.config.autoupdate == 1 then -- Если включен, выключаем и сохраняем конфиг
-                    mainIni.config.autoupdate =  0
-                    inicfg.save(mainIni, "Luna Helper.ini")
-                    sampAddChatMessage("{cccccc}[Luna Helper] {FFFFFF}Автообновление скрипта {FF0000}[OFF]", 0xcececeFF)
-                end
-            end)
-        end
-    },
     ["/lunalg"] = { -- Автологин
         action = function()
             lua_thread.create(function()
                 if mainIni.config.login == 0 then -- Если выключен, включаем и сохраняем конфиг
                     mainIni.config.login = 1
                     inicfg.save(mainIni, "Luna Helper.ini")
-                    sampAddChatMessage("{cccccc}[Luna Helper] {FFFFFF}Автологин {00ff00}[ON]", 0xcececeFF)
+                    sampAddChatMessage("{cd70ff}[Luna Helper] {FFFFFF}Автологин {00ff00}[ON]", 0xcececeFF)
                 elseif mainIni.config.login == 1 then -- Если включен, выключаем и сохраняем конфиг
                     mainIni.config.login =  0
                     inicfg.save(mainIni, "Luna Helper.ini")
-                    sampAddChatMessage("{cccccc}[Luna Helper] {FFFFFF}Автологин {FF0000}[OFF]", 0xcececeFF)
+                    sampAddChatMessage("{cd70ff}[Luna Helper] {FFFFFF}Автологин {FF0000}[OFF]", 0xcececeFF)
                 end
             end)
         end
@@ -171,11 +139,11 @@ local commands = {
                 if mainIni.config.autofuel == 0 then -- Если выключен, включаем и сохраняем конфиг
                     mainIni.config.autofuel = 1
                     inicfg.save(mainIni, "Luna Helper.ini")
-                    sampAddChatMessage("{cccccc}[Luna Helper] {FFFFFF}Автозаправка {00ff00}[ON]", 0xcececeFF)
+                    sampAddChatMessage("{cd70ff}[Luna Helper] {FFFFFF}Автозаправка {00ff00}[ON]", 0xcececeFF)
                 elseif mainIni.config.autofuel == 1 then -- Если включен, выключаем и сохраняем конфиг
                     mainIni.config.autofuel =  0
                     inicfg.save(mainIni, "Luna Helper.ini")
-                    sampAddChatMessage("{cccccc}[Luna Helper] {FFFFFF}Автозаправка {FF0000}[OFF]", 0xcececeFF)
+                    sampAddChatMessage("{cd70ff}[Luna Helper] {FFFFFF}Автозаправка {FF0000}[OFF]", 0xcececeFF)
                 end
             end)
         end
@@ -187,13 +155,13 @@ local commands = {
                 if mainIni.config.autosto == 0 then -- Если выключен, включаем и сохраняем конфиг
                     mainIni.config.autosto = 1
                     inicfg.save(mainIni, "Luna Helper.ini")
-                    sampAddChatMessage("{cccccc}[Luna Helper] {FFFFFF}Автопочинка в Автосервисе {00ff00}[ON]", 0xcececeFF)
-                    sampAddChatMessage("{cccccc}[Luna Helper] {FFFFFF}Автопочинка срабатывает, если у транспорта меньше или равно хп, сколько указано в конфиге.", 0xcececeFF)
+                    sampAddChatMessage("{cd70ff}[Luna Helper] {FFFFFF}Автопочинка в Автосервисе {00ff00}[ON]", 0xcececeFF)
+                    sampAddChatMessage("{cd70ff}[Luna Helper] {FFFFFF}Автопочинка срабатывает, если у транспорта меньше или равно хп, сколько указано в конфиге.", 0xcececeFF)
                 elseif mainIni.config.autosto == 1 then -- Если включен, выключаем и сохраняем конфиг
                     mainIni.config.autosto = 0
                     mainIni.config.autostoexit = 0 -- Автовыход тож оффаем чё бы нет
                     inicfg.save(mainIni, "Luna Helper.ini")
-                    sampAddChatMessage("{cccccc}[Luna Helper] {FFFFFF}Автопочинка в Автосервисе {FF0000}[OFF]", 0xcececeFF)
+                    sampAddChatMessage("{cd70ff}[Luna Helper] {FFFFFF}Автопочинка в Автосервисе {FF0000}[OFF]", 0xcececeFF)
                 end
             end)
         end
@@ -204,11 +172,11 @@ local commands = {
                 if mainIni.config.autostoexit == 0 then -- Если выключен, включаем и сохраняем конфиг
                     mainIni.config.autostoexit = 1
                     inicfg.save(mainIni, "Luna Helper.ini")
-                    sampAddChatMessage("{cccccc}[Luna Helper] {FFFFFF}Автовыход после Автопочинки {00ff00}[ON]", 0xcececeFF)
+                    sampAddChatMessage("{cd70ff}[Luna Helper] {FFFFFF}Автовыход после Автопочинки {00ff00}[ON]", 0xcececeFF)
                 elseif mainIni.config.autostoexit == 1 then -- Если включен, выключаем и сохраняем конфиг
                     mainIni.config.autostoexit =  0
                     inicfg.save(mainIni, "Luna Helper.ini")
-                    sampAddChatMessage("{cccccc}[Luna Helper] {FFFFFF}Автовыход после Автопочинки {FF0000}[OFF]", 0xcececeFF)
+                    sampAddChatMessage("{cd70ff}[Luna Helper] {FFFFFF}Автовыход после Автопочинки {FF0000}[OFF]", 0xcececeFF)
                 end
             end)
         end
@@ -220,11 +188,11 @@ local commands = {
                 if mainIni.config.lockvehicle == 0 then -- Если выключен, включаем и сохраняем конфиг
                     mainIni.config.lockvehicle = 1
                     inicfg.save(mainIni, "Luna Helper.ini")
-                    sampAddChatMessage("{cccccc}[Luna Helper] {FFFFFF}Открытие/Закрытие транспорта при нажатии на клавишу L {00ff00}[ON]", 0xcececeFF)
+                    sampAddChatMessage("{cd70ff}[Luna Helper] {FFFFFF}Открытие/Закрытие транспорта при нажатии на клавишу L {00ff00}[ON]", 0xcececeFF)
                 elseif mainIni.config.lockvehicle == 1 then -- Если включен, выключаем и сохраняем конфиг
                     mainIni.config.lockvehicle =  0
                     inicfg.save(mainIni, "Luna Helper.ini")
-                    sampAddChatMessage("{cccccc}[Luna Helper] {FFFFFF}Открытие/Закрытие транспорта при нажатии на клавишу L {FF0000}[OFF]", 0xcececeFF)
+                    sampAddChatMessage("{cd70ff}[Luna Helper] {FFFFFF}Открытие/Закрытие транспорта при нажатии на клавишу L {FF0000}[OFF]", 0xcececeFF)
                 end
             end)
         end
@@ -240,20 +208,15 @@ local commands = {
 -- Функции
 function main() -- Основная функция, подгружаемая при загрузке скрипта
     while not isSampAvailable() do wait(0) end
-    -- Автоапдейт
-    if mainIni.config.autoupdate == 1 then
-        LunaUpdate()
-    end
-    
     local ip, port = sampGetCurrentServerAddress()
     if ip ~= "185.169.132.133" and port ~= 7777 then -- Pears Project
         thisScript():unload() -- Отгружаем скрипт, если юзер заходит на другой сервер
         return 0
     end
     if not doesFileExist("moonloader/config/Luna Helper.ini") then 
-        sampAddChatMessage("{cccccc}[Luna Helper] {FFFFFF}Вы запускаете скрипт в первый раз. Конфиг был успешно создан!", 0xcececeFF)
+        sampAddChatMessage("{cd70ff}[Luna Helper] {FFFFFF}Вы запускаете скрипт в первый раз. Конфиг был успешно создан!", 0xcececeFF)
     end
-    sampAddChatMessage("{cccccc}[Luna Helper] {FFFFFF}Скрипт успешно загружен {FF9000}[ /luna ]", 0xcececeFF)
+    sampAddChatMessage("{cd70ff}[Luna Helper] {FFFFFF}Скрипт успешно загружен {FF9000}[ /luna ]", 0xcececeFF)
 
     sampRegisterChatCommand("lunapass", lunapass_f) -- Пароль от аккаунта
     sampRegisterChatCommand("lunagoogle", lunagoogle_f) -- 2FA от аккаунта
@@ -289,29 +252,29 @@ end
 
 function lunapass_f(arg) -- Смена пароля от аккаунта для автологина
     if arg == "" then -- Если ничего не было введено
-        sampAddChatMessage("{cccccc}[Luna Helper] {FFFFFF}Изменить пароль от автологина {FF9000} [ /lunapass пароль ]", 0xcececeFF)
+        sampAddChatMessage("{cd70ff}[Luna Helper] {FFFFFF}Изменить пароль от автологина {FF9000} [ /lunapass пароль ]", 0xcececeFF)
         return 0
     end
 
     mainIni.config.password = arg -- Получаем новый пароль
     inicfg.save(mainIni, "Luna Helper.ini") -- Сохраняем конфиг
-    sampAddChatMessage("{cccccc}[Luna Helper] {FFFFFF}Пароль изменён на {FF9000}"..arg, 0xcececeFF) -- Сообщаем, что пароль сохранён
+    sampAddChatMessage("{cd70ff}[Luna Helper] {FFFFFF}Пароль изменён на {FF9000}"..arg, 0xcececeFF) -- Сообщаем, что пароль сохранён
 end
 
 function lunagoogle_f(arg) -- Смена 2FA от аккаунта для автологина
     if arg == "" then -- Если ничего не было введено
-        sampAddChatMessage("{cccccc}[Luna Helper] {FFFFFF}Изменить ключ 2FA от автологина {FF9000} [ /lunapass Ключ ]", 0xcececeFF)
+        sampAddChatMessage("{cd70ff}[Luna Helper] {FFFFFF}Изменить ключ 2FA от автологина {FF9000} [ /lunapass Ключ ]", 0xcececeFF)
         return 0
     end
 
     mainIni.config.google = arg -- Получаем новый 2FA
     inicfg.save(mainIni, "Luna Helper.ini") -- Сохраняем конфиг
-    sampAddChatMessage("{cccccc}[Luna Helper] {FFFFFF}Ключ от 2FA изменён на {FF9000}"..arg, 0xcececeFF) -- Сообщаем, что 2FA сохранён
+    sampAddChatMessage("{cd70ff}[Luna Helper] {FFFFFF}Ключ от 2FA изменён на {FF9000}"..arg, 0xcececeFF) -- Сообщаем, что 2FA сохранён
 end
 
 function lunaask_f(arg) -- Смена ХП для автопочинки в Автосервисе
     if arg == "" then -- Если ничего не было введено
-        sampAddChatMessage("{cccccc}[Luna Helper] {FFFFFF}Изменить ХП для автопочинки в Автосервисе {FF9000} [ /lunaask кол-во ]", 0xcececeFF)
+        sampAddChatMessage("{cd70ff}[Luna Helper] {FFFFFF}Изменить ХП для автопочинки в Автосервисе {FF9000} [ /lunaask кол-во ]", 0xcececeFF)
         return 0
     end
 
@@ -323,7 +286,7 @@ function lunaask_f(arg) -- Смена ХП для автопочинки в Автосервисе
 
     mainIni.config.autostokolvo = new_hp -- Сохраняем преобразованное значение
     inicfg.save(mainIni, "Luna Helper.ini") -- Сохраняем конфиг
-    sampAddChatMessage("{cccccc}[Luna Helper] {FFFFFF}ХП автопочинки изменено на {FF9000}"..new_hp, 0xcececeFF)
+    sampAddChatMessage("{cd70ff}[Luna Helper] {FFFFFF}ХП автопочинки изменено на {FF9000}"..new_hp, 0xcececeFF)
 end
 
 
@@ -448,22 +411,5 @@ function AutoLock()
         and not sampIsDialogActive() and not isSampfuncsConsoleActive() then
             sampSendChat("/lock")
         end
-    end
-end
-
-function LunaUpdate() -- Обновление скрипта
-    local updater_loaded, Updater = pcall(loadstring, [[return {check=function (a,b,c) 
-        -- Краткая версия кода автообновления, оставим существующий код
-    }]])
-
-    if updater_loaded then
-        autoupdate_loaded, Update = pcall(Updater)
-        if autoupdate_loaded then
-            Update.json_url = "https://github.com/cuzavr/Luna-Helper/raw/refs/heads/main/version.json" .. tostring(os.clock())
-            Update.prefix = "[" .. string.upper(thisScript().name) .. "]: "
-            Update.url = "https://github.com/cuzavr/Luna-Helper"
-        end
-    else
-        sampAddChatMessage("{cccccc}[Luna Helper] {FFFFFF}Не удалось загрузить функцию автообновления.", 0xcececeFF)
     end
 end
