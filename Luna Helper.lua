@@ -7,7 +7,7 @@
 script_name("Luna Helper")
 script_author("cuzavr")
 script_description("Помощник для игры на Pears Project")
-script_version("v0.4")
+script_version("v0.4.1")
 
 -- Кодировка
 local encoding = require 'encoding'
@@ -36,8 +36,11 @@ local mainIni = inicfg.load({ -- Дефолт значения в конфиге
 local sha1 = require('sha1')
 local basexx = require('basexx')
 
--- Для автозаправки
+-- Для автопочинки
 local clickedSTOSto = false
+
+-- Для автозаправки
+local noFuel = false
 
 -- Таблица с информацией о командах
 local commands = {
@@ -88,7 +91,7 @@ local commands = {
                 "{cd70ff}2FA " .. google .. "\n" ..
                 "{cd70ff}ХП для Автопочинки в Автосервисе {FF9000}[" .. autostokolvoStatus .. "]\n"
 
-                sampShowDialog(1, "{FF9000}Luna Helper v0.4", dialogText, "ОК", "", 0)
+                sampShowDialog(1, "{FF9000}Luna Helper v0.4.1", dialogText, "ОК", "", 0)
             end)
         end
     },
@@ -197,13 +200,6 @@ local commands = {
             end)
         end
     },
-    ["/test"] = {
-        action = function()
-            lua_thread.create(function()
-                sampAddChatMessage(sampTextdrawGetString(20))
-            end)
-        end
-    },
 }
 -- Функции
 function main() -- Основная функция, подгружаемая при загрузке скрипта
@@ -291,7 +287,6 @@ end
 
 
 function sampevents.onSendCommand(command) -- Функция для ввода различных команд
-
     local parts = {}
     for part in command:gmatch("%S+") do
         parts[#parts + 1] = part
@@ -340,18 +335,24 @@ function sampevents.onShowDialog(id, style, title, button1, button2, text) -- Ди
 
     -- Автозаправка
     if id == 484 and mainIni.config.autofuel == 1 and string.find(title, "Заправка") then
+        if noFuel == true then -- На всякий проверочка если денег нет или ещё какая-то ошибка, чтобы не флудило диалог
+            noFuel = false -- Сразу ставим false чтобы если починилось то сработало всё
+            return false
+        end
         local liters = text:match("Для полного бака вам требуется: (%d+) литров")
         if liters then -- Если получено максимальное кол-во литров, которое можно заправить
             sampSendDialogResponse(484, 1, 65535, liters) -- Заправляем на максимальное кол-во литров
+            noFuel = true -- На всякий ставим проверку мол денег нет или ещё какая-то ошибка
             return false -- Сразу же убираем диалог, чтобы не раздражал
         end
     end
     if id == 1700 and mainIni.config.autofuel == 1 and string.find(text, "Я заправляю") then
+        noFuel = false -- Удачная заправка, возвращаем false
         return false -- Сразу же убираем диалог, чтобы не раздражал
     end
 
     -- Автопочинка в Автосервисе
-    if id == 562 and mainIni.config.autosto == 1 and string.find(title, "Обслуживание") then
+    if id == 562 and mainIni.config.autosto == 1 and string.find(title, "Обслуживание") then -- Автопочинка
         if isCharInAnyCar(PLAYER_PED) then
             local autostokolvo = mainIni.config.autostokolvo -- Получаем с конфига хп установленное
             local car = storeCarCharIsInNoSave(PLAYER_PED) -- Проверка на тс
@@ -364,6 +365,16 @@ function sampevents.onShowDialog(id, style, title, button1, button2, text) -- Ди
                 return false
             end
         end
+    end
+    if id == 1700 and mainIni.config.autosto == 1 and string.find(text, "В автосервисе не хватает рем комплектов") then -- Если ремки закончились в СТО 
+        sampAddChatMessage("{cd70ff}[Luna Helper] {FFFFFF}Автопочинка не сработала. В автосервисе закончились рем комплекты.", 0xcececeFF)
+        ExitSTO() -- Выходим с СТО если включена функция автовыхода с сто после автопочинки
+        return false -- Убираем диалог
+    end
+    if id == 1700 and mainIni.config.autosto == 1 and string.find(text, "Вам не хватает денег") then -- Если денег нет на починку
+        sampAddChatMessage("{cd70ff}[Luna Helper] {FFFFFF}Автопочинка не сработала. У вас нет денег.", 0xcececeFF)
+        ExitSTO() -- Выходим с СТО если включена функция автовыхода с сто после автопочинки
+        return false -- Убираем диалог
     end
     if id == 1700 and mainIni.config.autosto == 1 and string.find(text, "Вы выехали из автосервиса") then -- Скип диалога
         return false
@@ -405,7 +416,7 @@ function ExitSTO() -- Автовыход с Автосервиса
     end
 end
 
-function AutoLock()
+function AutoLock() -- Открытие/Закрытие тс через L
     if mainIni.config.lockvehicle == 1 then
         if isKeyJustPressed(vkeys.VK_L) and not sampIsChatInputActive() 
         and not sampIsDialogActive() and not isSampfuncsConsoleActive() then
