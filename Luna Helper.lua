@@ -5,7 +5,7 @@
 script_name("Luna Helper")
 script_author("cuzavr")
 script_description("Помощник для игры на Pears Project")
-script_version("v0.4.3")
+script_version("v0.4.4")
 
 -- Библиотеки
 local encoding = require 'encoding' -- Кодировка
@@ -37,7 +37,7 @@ local mainIni = inicfg.load({ -- Дефолт значения в конфиге
 }, 'Luna Helper.ini')
 
 -- Прочее
-local lunaversion = "v0.4.3" -- Версия скрипта для диалогов и тд
+local lunaversion = "v0.4.4" -- Версия скрипта для диалогов и тд
 local clickedSTO = false -- Для автопочинки
 local noFuel = false -- Для автозаправки
 
@@ -48,15 +48,15 @@ local commands = {
         action = function()
             lua_thread.create(function()
                 -- Автологин
-                local autoLoginStatus = mainIni.config.login == true and "{00ff00}[ON]" or "{FF0000}[OFF]"
+                local autoLoginStatus = mainIni.config.login and "{00ff00}[ON]" or "{FF0000}[OFF]"
                 -- Автозаправка
-                local autoFuelStatus = mainIni.config.autofuel == true and "{00ff00}[ON]" or "{FF0000}[OFF]"
+                local autoFuelStatus = mainIni.config.autofuel and "{00ff00}[ON]" or "{FF0000}[OFF]"
                 -- Автопочинка
-                local autoStoStatus = mainIni.config.autosto == true and "{00ff00}[ON]" or "{FF0000}[OFF]"
+                local autoStoStatus = mainIni.config.autosto and "{00ff00}[ON]" or "{FF0000}[OFF]"
                 local autostokolvoStatus = mainIni.config.autostokolvo
-                local autoStoExitStatus = mainIni.config.autostoexit == true and "{00ff00}[ON]" or "{FF0000}[OFF]"
+                local autoStoExitStatus = mainIni.config.autostoexit and "{00ff00}[ON]" or "{FF0000}[OFF]"
                 -- Открыть/Закрыть транспорт при нажатии на клавишу L
-                local lockvehicleStatus = mainIni.config.lockvehicle == true and "{00ff00}[ON]" or "{FF0000}[OFF]"
+                local lockvehicleStatus = mainIni.config.lockvehicle and "{00ff00}[ON]" or "{FF0000}[OFF]"
                 -- Пароль и гугл
                 local passwordStatus = mainIni.config.password == 'nopassword' and "{FF0000}[Не установлен]" or "{00ff00}[Установлен]"
                 local googleStatus = mainIni.config.google == 'nogoogle' and "{FF0000}[Не установлен]" or "{00ff00}[Установлен]"
@@ -331,7 +331,7 @@ function sampevents.onShowDialog(id, style, title, button1, button2, text) -- Ди
 
     -- Автозаправка
     if id == 484 and mainIni.config.autofuel and string.find(title, "Заправка") then
-        if noFuel == true then -- На всякий проверочка если денег нет или ещё какая-то ошибка, чтобы не флудило диалог
+        if noFuel then -- На всякий проверочка если денег нет или ещё какая-то ошибка, чтобы не флудило диалог
             noFuel = false -- Сразу ставим false чтобы если починилось то сработало всё
             return false
         end
