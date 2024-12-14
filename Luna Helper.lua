@@ -1,11 +1,11 @@
---[[ Для работы на лаунчере Pears Project [ Библиотеки - Samp.Lua, Sampfuncs ] 
+--[[ Для работы на лаунчере Pears Project [ Библиотеки - Samp.Lua, Sampfuncs, MoonImgui ] 
 Также библиотеки для луа sha1, basexx --]]
 
 -- Информация о скрипте
 script_name("Luna Helper")
 script_author("cuzavr")
 script_description("Помощник для игры на Pears Project")
-script_version("v0.4.4")
+script_version("v0.5")
 
 -- Библиотеки
 local encoding = require 'encoding' -- Кодировка
@@ -15,6 +15,7 @@ require 'sampfuncs' -- Sampfuncs
 local vkeys = require 'vkeys' -- Для получения клавиш и их применение
 local sha1 = require 'sha1' -- Для 2FA
 local basexx = require 'basexx' -- Для 2FA
+local imgui = require 'imgui' -- Для визуальной менюшки
 
 -- Конфиг скрипта
 local inicfg = require 'inicfg'
@@ -37,9 +38,27 @@ local mainIni = inicfg.load({ -- Дефолт значения в конфиге
 }, 'Luna Helper.ini')
 
 -- Прочее
-local lunaversion = "v0.4.4" -- Версия скрипта для диалогов и тд
+local lunaversion = "v0.5" -- Версия скрипта для диалогов и тд
 local clickedSTO = false -- Для автопочинки
 local noFuel = false -- Для автозаправки
+
+-- Имгуишечка (imgui)
+u8 = encoding.UTF8
+show_main_window = imgui.ImBool(false)
+local autoLogin_imgui = imgui.ImBool(mainIni.config.login)
+local lockPlayer_imgui = imgui.ImBool(mainIni.config.lockvehicle)
+local autoFuel_imgui = imgui.ImBool(mainIni.config.autofuel)
+local autoSTO_imgui = imgui.ImBool(mainIni.config.autosto)
+local autoSTOExit_imgui = imgui.ImBool(mainIni.config.autostoexit)
+local autoSTOKolvo_imgui = imgui.ImInt(mainIni.config.autostokolvo)
+local pass_buffer_imgui = imgui.ImBuffer(256)
+pass_buffer_imgui.v = tostring(mainIni.config.password)
+local google_buffer_imgui = imgui.ImBuffer(256)
+google_buffer_imgui.v = tostring(mainIni.config.google)
+local pass_show_imgui = imgui.ImBool(false)
+local pass_show = false
+local google_show_imgui = imgui.ImBool(false)
+local google_show = false
 
 -- Таблица с информацией о командах
 local commands = {
@@ -47,49 +66,7 @@ local commands = {
     ["/luna"] = { -- Меню скрипта
         action = function()
             lua_thread.create(function()
-                -- Автологин
-                local autoLoginStatus = mainIni.config.login and "{00ff00}[ON]" or "{FF0000}[OFF]"
-                -- Автозаправка
-                local autoFuelStatus = mainIni.config.autofuel and "{00ff00}[ON]" or "{FF0000}[OFF]"
-                -- Автопочинка
-                local autoStoStatus = mainIni.config.autosto and "{00ff00}[ON]" or "{FF0000}[OFF]"
-                local autostokolvoStatus = mainIni.config.autostokolvo
-                local autoStoExitStatus = mainIni.config.autostoexit and "{00ff00}[ON]" or "{FF0000}[OFF]"
-                -- Открыть/Закрыть транспорт при нажатии на клавишу L
-                local lockvehicleStatus = mainIni.config.lockvehicle and "{00ff00}[ON]" or "{FF0000}[OFF]"
-                -- Пароль и гугл
-                local passwordStatus = mainIni.config.password == 'nopassword' and "{FF0000}[Не установлен]" or "{00ff00}[Установлен]"
-                local googleStatus = mainIni.config.google == 'nogoogle' and "{FF0000}[Не установлен]" or "{00ff00}[Установлен]"
-
-                local dialogText =
-                "{cccccc}Команды Скрипта\n" ..
-                "{cd70ff}/luna {FFFFFF}- Меню скрипта.\n" ..
-                "{cd70ff}/lunard {FFFFFF}- Перезагрузить скрипт.\n" ..
-                "{cd70ff}/lunabb {FFFFFF}- Отгрузить скрипт.\n" ..
-                "{cd70ff}/lunacf {FFFFFF}- Сбросить конфиг скрипта.\n" ..
-
-                "\n{cd70ff}/lunalg {FFFFFF}- Включить/Выключить автологин.\n" ..
-                "{cd70ff}/lunaaf {FFFFFF}- Включить/Выключить автозаправку.\n" ..
-                "{cd70ff}/lunaas {FFFFFF}- Включить/Выключить автопочинку в Автосервисе.\n" ..
-                "{cd70ff}/lunaask {FFFFFF}- Изменить кол-во хп в автопочинке, чтобы при таком и меньше чинилось.\n" ..
-                "{cd70ff}/lunaaske {FFFFFF}- Включить/Выключить Автовыход после Автопочинки.\n" ..
-
-                "\n{cd70ff}/lunalock {FFFFFF}- Включить/Выключить функцию открытия/закрытия транспорта на клавишу {FF9000}[L]\n" ..
-
-                "\n{cd70ff}/lunapass {FFFFFF}- Изменить пароль для автологина.\n" ..
-                "{cd70ff}/lunagoogle {FFFFFF}- Изменить 2FA для автологина.\n" ..
-
-                "{cccccc}\nВаши Настройки\n" ..
-                "{cd70ff}Автологин " .. autoLoginStatus .. "\n" ..
-                "{cd70ff}Автозаправка " .. autoFuelStatus .. "\n" ..
-                "{cd70ff}Автопочинка в Автосервисе " .. autoStoStatus .. "\n" ..
-                "{cd70ff}Автовыход с Автосервиса после Автопочинки " .. autoStoExitStatus .. "\n" ..
-                "{cd70ff}Открытие/Закрытие транспорта при нажатии на клавишу L " .. lockvehicleStatus .. "\n" ..
-
-                "\n{cd70ff}Пароль " .. passwordStatus .. "\n" ..
-                "{cd70ff}2FA " .. googleStatus .. "\n" ..
-                "{cd70ff}ХП для Автопочинки в Автосервисе {FF9000}[" .. autostokolvoStatus .. "]\n"
-                sampShowDialog(1, "{FF9000}Luna Helper ".. lunaversion, dialogText, "ОК", "", 0)
+                show_main_window.v = not show_main_window.v
             end)
         end
     },
@@ -117,86 +94,6 @@ local commands = {
             end)
         end
     },
-    -- Конфиг Скрипта
-    ["/lunalg"] = { -- Автологин
-        action = function()
-            lua_thread.create(function()
-                if not mainIni.config.login then -- Если выключен, включаем и сохраняем конфиг
-                    mainIni.config.login = true
-                    inicfg.save(mainIni, "Luna Helper.ini")
-                    sampAddChatMessage("* {cd70ff}[Luna Helper] {FFFFFF}Автологин {00ff00}[ON]", 0xccccccAA)
-                elseif mainIni.config.login then -- Если включен, выключаем и сохраняем конфиг
-                    mainIni.config.login = false
-                    inicfg.save(mainIni, "Luna Helper.ini")
-                    sampAddChatMessage("* {cd70ff}[Luna Helper] {FFFFFF}Автологин {FF0000}[OFF]", 0xccccccAA)
-                end
-            end)
-        end
-    },
-    ["/lunaaf"] = { -- Автозаправка
-        action = function()
-            lua_thread.create(function()
-                if not mainIni.config.autofuel then -- Если выключен, включаем и сохраняем конфиг
-                    mainIni.config.autofuel = true
-                    inicfg.save(mainIni, "Luna Helper.ini")
-                    sampAddChatMessage("* {cd70ff}[Luna Helper] {FFFFFF}Автозаправка {00ff00}[ON]", 0xccccccAA)
-                elseif mainIni.config.autofuel then -- Если включен, выключаем и сохраняем конфиг
-                    mainIni.config.autofuel = false
-                    inicfg.save(mainIni, "Luna Helper.ini")
-                    sampAddChatMessage("* {cd70ff}[Luna Helper] {FFFFFF}Автозаправка {FF0000}[OFF]", 0xccccccAA)
-                end
-            end)
-        end
-    },
-    -- Автопочинка в Автосервисе
-    ["/lunaas"] = { -- Включить/Выключить автопочинку
-        action = function()
-            lua_thread.create(function()
-                if not mainIni.config.autosto then -- Если выключен, включаем и сохраняем конфиг
-                    mainIni.config.autosto = true
-                    inicfg.save(mainIni, "Luna Helper.ini")
-                    sampAddChatMessage("* {cd70ff}[Luna Helper] {FFFFFF}Автопочинка в Автосервисе {00ff00}[ON]", 0xccccccAA)
-                    sampAddChatMessage("* {cd70ff}[Luna Helper] {FFFFFF}Автопочинка срабатывает, если у транспорта меньше или равно хп, сколько указано в конфиге.", 0xccccccAA)
-                elseif mainIni.config.autosto then -- Если включен, выключаем и сохраняем конфиг
-                    mainIni.config.autosto = false
-                    mainIni.config.autostoexit = false -- Автовыход тож оффаем чё бы нет
-                    inicfg.save(mainIni, "Luna Helper.ini")
-                    sampAddChatMessage("* {cd70ff}[Luna Helper] {FFFFFF}Автопочинка в Автосервисе {FF0000}[OFF]", 0xccccccAA)
-                end
-            end)
-        end
-    },
-    ["/lunaaske"] = { -- Включить/Выключить автовыход после автопочинки
-        action = function()
-            lua_thread.create(function()
-                if not mainIni.config.autostoexit then -- Если выключен, включаем и сохраняем конфиг
-                    mainIni.config.autostoexit = true
-                    inicfg.save(mainIni, "Luna Helper.ini")
-                    sampAddChatMessage("* {cd70ff}[Luna Helper] {FFFFFF}Автовыход после Автопочинки {00ff00}[ON]", 0xccccccAA)
-                elseif mainIni.config.autostoexit then -- Если включен, выключаем и сохраняем конфиг
-                    mainIni.config.autostoexit = false
-                    inicfg.save(mainIni, "Luna Helper.ini")
-                    sampAddChatMessage("* {cd70ff}[Luna Helper] {FFFFFF}Автовыход после Автопочинки {FF0000}[OFF]", 0xccccccAA)
-                end
-            end)
-        end
-    },
-    -- Бинды
-    ["/lunalock"] = { -- При нажатии на L будет прописывать за игрока /lock
-        action = function()
-            lua_thread.create(function()
-                if not mainIni.config.lockvehicle then -- Если выключен, включаем и сохраняем конфиг
-                    mainIni.config.lockvehicle = true
-                    inicfg.save(mainIni, "Luna Helper.ini")
-                    sampAddChatMessage("* {cd70ff}[Luna Helper] {FFFFFF}Открытие/Закрытие транспорта при нажатии на клавишу L {00ff00}[ON]", 0xccccccAA)
-                elseif mainIni.config.lockvehicle then -- Если включен, выключаем и сохраняем конфиг
-                    mainIni.config.lockvehicle = false
-                    inicfg.save(mainIni, "Luna Helper.ini")
-                    sampAddChatMessage("* {cd70ff}[Luna Helper] {FFFFFF}Открытие/Закрытие транспорта при нажатии на клавишу L {FF0000}[OFF]", 0xccccccAA)
-                end
-            end)
-        end
-    },
 }
 -- Функции
 function main() -- Основная функция, подгружаемая при загрузке скрипта
@@ -219,6 +116,10 @@ function main() -- Основная функция, подгружаемая при загрузке скрипта
 
     while true do
         wait(0) -- Раз в 0 сек функции ниже вызываются, то есть по кд
+        imgui.Process = show_main_window.v
+        pass_buffer_imgui.v = tostring(mainIni.config.password)
+        google_buffer_imgui.v = tostring(mainIni.config.google)
+        autoSTOKolvo_imgui.v = mainIni.config.autostokolvo
         TextdrawSTO() -- Текстдрав СТО
         AutoLock() -- Открытие и закрытии тс при нажатии на L
     end
@@ -375,6 +276,154 @@ function sampevents.onShowDialog(id, style, title, button1, button2, text) -- Ди
         return false
     end
 end
+
+function apply_custom_style() -- Наводим красоту
+    imgui.SwitchContext()
+    local style = imgui.GetStyle()
+    local colors = style.Colors
+    local clr = imgui.Col
+    local ImVec4 = imgui.ImVec4
+    
+    colors[clr.WindowBg]              = ImVec4(0.14, 0.12, 0.16, 1.00);
+    colors[clr.ChildWindowBg]         = ImVec4(0.30, 0.20, 0.39, 0.00);
+    colors[clr.PopupBg]               = ImVec4(0.05, 0.05, 0.10, 0.90);
+    colors[clr.Border]                = ImVec4(0.89, 0.85, 0.92, 0.30);
+    colors[clr.BorderShadow]          = ImVec4(0.00, 0.00, 0.00, 0.00);
+    colors[clr.FrameBg]               = ImVec4(0.30, 0.20, 0.39, 1.00);
+    colors[clr.FrameBgHovered]        = ImVec4(0.41, 0.19, 0.63, 0.68);
+    colors[clr.FrameBgActive]         = ImVec4(0.41, 0.19, 0.63, 1.00);
+    colors[clr.TitleBg]               = ImVec4(0.41, 0.19, 0.63, 0.45);
+    colors[clr.TitleBgCollapsed]      = ImVec4(0.41, 0.19, 0.63, 0.35);
+    colors[clr.TitleBgActive]         = ImVec4(0.41, 0.19, 0.63, 0.78);
+    colors[clr.MenuBarBg]             = ImVec4(0.30, 0.20, 0.39, 0.57);
+    colors[clr.ScrollbarBg]           = ImVec4(0.30, 0.20, 0.39, 1.00);
+    colors[clr.ScrollbarGrab]         = ImVec4(0.41, 0.19, 0.63, 0.31);
+    colors[clr.ScrollbarGrabHovered]  = ImVec4(0.41, 0.19, 0.63, 0.78);
+    colors[clr.ScrollbarGrabActive]   = ImVec4(0.41, 0.19, 0.63, 1.00);
+    colors[clr.ComboBg]               = ImVec4(0.30, 0.20, 0.39, 1.00);
+    colors[clr.CheckMark]             = ImVec4(0.56, 0.61, 1.00, 1.00);
+    colors[clr.SliderGrab]            = ImVec4(0.41, 0.19, 0.63, 0.24);
+    colors[clr.SliderGrabActive]      = ImVec4(0.41, 0.19, 0.63, 1.00);
+    colors[clr.Button]                = ImVec4(0.41, 0.19, 0.63, 0.44);
+    colors[clr.ButtonHovered]         = ImVec4(0.41, 0.19, 0.63, 0.86);
+    colors[clr.ButtonActive]          = ImVec4(0.64, 0.33, 0.94, 1.00);
+    colors[clr.Header]                = ImVec4(0.41, 0.19, 0.63, 0.76);
+    colors[clr.HeaderHovered]         = ImVec4(0.41, 0.19, 0.63, 0.86);
+    colors[clr.HeaderActive]          = ImVec4(0.41, 0.19, 0.63, 1.00);
+    colors[clr.ResizeGrip]            = ImVec4(0.41, 0.19, 0.63, 0.20);
+    colors[clr.ResizeGripHovered]     = ImVec4(0.41, 0.19, 0.63, 0.78);
+    colors[clr.ResizeGripActive]      = ImVec4(0.41, 0.19, 0.63, 1.00);
+    colors[clr.CloseButton]           = ImVec4(1.00, 1.00, 1.00, 0.75);
+    colors[clr.CloseButtonHovered]    = ImVec4(0.88, 0.74, 1.00, 0.59);
+    colors[clr.CloseButtonActive]     = ImVec4(0.88, 0.85, 0.92, 1.00);
+    colors[clr.PlotLines]             = ImVec4(0.89, 0.85, 0.92, 0.63);
+    colors[clr.PlotLinesHovered]      = ImVec4(0.41, 0.19, 0.63, 1.00);
+    colors[clr.PlotHistogram]         = ImVec4(0.89, 0.85, 0.92, 0.63);
+    colors[clr.PlotHistogramHovered]  = ImVec4(0.41, 0.19, 0.63, 1.00);
+    colors[clr.TextSelectedBg]        = ImVec4(0.41, 0.19, 0.63, 0.43);
+    colors[clr.ModalWindowDarkening]  = ImVec4(0.20, 0.20, 0.20, 0.35);
+end
+apply_custom_style()
+
+function onWindowMessage(msg, wparam, lparam)
+    if msg == 0x100 or msg == 0x101 then
+        if (wparam == vkeys.VK_ESCAPE and show_main_window.v) and not isPauseMenuActive() then
+            consumeWindowMessage(true, false)
+            if msg == 0x101 then
+                show_main_window.v = false
+            end
+        end
+    end
+end
+
+function imgui.OnDrawFrame()
+    if show_main_window.v then
+        local sw, sh = getScreenResolution()
+        imgui.SetNextWindowPos(imgui.ImVec2(sw / 2, sh / 2), imgui.Cond.FirstUseEver, imgui.ImVec2(0.5, 0.5))
+        imgui.SetNextWindowSize(imgui.ImVec2(650, 450), imgui.Cond.FirstUseEver)
+        imgui.Begin(u8'Luna Helper ' .. lunaversion, show_main_window)
+        if imgui.Checkbox(u8'Автологин', autoLogin_imgui) then -- Кнопка с галочкой
+            mainIni.config.login = autoLogin_imgui.v
+            inicfg.save(mainIni, "Luna Helper.ini") -- Сохраняем конфиг
+        end
+        if imgui.Checkbox(u8'Автозаправка', autoFuel_imgui) then -- Кнопка с галочкой
+            mainIni.config.autofuel = autoFuel_imgui.v
+            inicfg.save(mainIni, "Luna Helper.ini") -- Сохраняем конфиг
+        end
+        if imgui.Checkbox(u8'Автопочинка', autoSTO_imgui) then -- Кнопка с галочкой
+            mainIni.config.autosto = autoSTO_imgui.v
+            if autoSTO_imgui.v == false then 
+                mainIni.config.autostoexit = false 
+                autoSTOExit_imgui.v = false
+            end
+            inicfg.save(mainIni, "Luna Helper.ini") -- Сохраняем конфиг
+        end
+        if autoSTO_imgui.v then
+            imgui.NewLine()
+            imgui.SameLine(30.0, 0.0)
+            if imgui.Checkbox(u8'Автовыход с СТО после починки', autoSTOExit_imgui) then
+                mainIni.config.autostoexit = autoSTOExit_imgui.v
+                inicfg.save(mainIni, "Luna Helper.ini") -- Сохраняем конфиг
+            end
+        end
+            
+        if imgui.Checkbox(u8'Открыть/Закрыть транспорт (L)', lockPlayer_imgui) then -- Кнопка с галочкой
+            mainIni.config.lockvehicle = lockPlayer_imgui.v
+            inicfg.save(mainIni, "Luna Helper.ini") -- Сохраняем конфиг
+        end
+        
+        imgui.Text(u8'Мин. количество ХП для починки: ')
+        imgui.SameLine(0.0, -1.0)
+        if imgui.InputInt(' ##3', autoSTOKolvo_imgui) then -- условие будет срабатывать при изменении числа
+            mainIni.config.autostokolvo = autoSTOKolvo_imgui.v
+            inicfg.save(mainIni, "Luna Helper.ini")
+        end
+
+        imgui.NewLine()
+
+        imgui.Text(u8'Пароль:\t\t\t\t\t\t\t\t ') -- АХАХАХАХАХАХ найс костыль создал)))
+        imgui.SameLine(0.0, -1.0)
+        if imgui.InputText(' ##1', pass_buffer_imgui, pass_show and 0 or imgui.InputTextFlags.Password) then -- условие будет срабатывать при изменении текста
+            mainIni.config.password = pass_buffer_imgui.v
+            inicfg.save(mainIni, "Luna Helper.ini")
+        end
+
+        imgui.Text(u8'Код 2FA (аутентификация): ')
+        imgui.SameLine(0.0, -1.0)
+        if imgui.InputText(' ##2', google_buffer_imgui, google_show and 0 or imgui.InputTextFlags.Password) then -- условие будет срабатывать при изменении текста
+            mainIni.config.google = google_buffer_imgui.v
+            inicfg.save(mainIni, "Luna Helper.ini")
+        end
+        if imgui.Checkbox(u8'Показать пароль', pass_show_imgui) then -- Кнопка с галочкой
+            pass_show = pass_show_imgui.v
+        end
+        imgui.SameLine(0.0, -1.0)
+        if imgui.Checkbox(u8'Показать 2FA', google_show_imgui) then -- Кнопка с галочкой
+            google_show = google_show_imgui.v
+        end
+        
+        local btn_size = imgui.ImVec2(-0.1, 0)
+        imgui.NewLine()
+        if imgui.Button(u8'Перезагрузить скрипт', btn_size) then -- Кнопка
+            showCursor(false)
+            thisScript():reload()
+        end
+        if imgui.Button(u8'Отгрузить скрипт', btn_size) then -- Кнопка
+            showCursor(false)
+            sampAddChatMessage("* {cd70ff}[Luna Helper] {FFFFFF}Скрипт {FF0000}[Отгружен]", 0xccccccAA)
+            thisScript():unload()
+        end
+        if imgui.Button(u8'Сбросить конфиг', btn_size) then -- Кнопка
+            showCursor(false)
+            os.remove(getWorkingDirectory().."\\config\\Luna Helper.ini")
+            inicfg.load(mainIni, "..\\config\\Luna Helper.ini")
+            thisScript():reload()
+        end
+
+        imgui.End()
+    end
+end
+
 
 function TextdrawSTO() -- Автопочинка текстдрав
     if mainIni.config.autosto then
