@@ -1,11 +1,11 @@
---[[ Для работы на лаунчере Pears Project [ Библиотеки - Samp.Lua, Sampfuncs, MoonImgui ] 
+--[[ Для работы на лаунчере Pears Project [ Библиотеки - Samp.Lua, Sampfuncs, Moon Imgui ] 
 Также библиотеки для луа sha1, basexx --]]
 
 -- Информация о скрипте
 script_name("Luna Helper")
 script_author("cuzavr")
 script_description("Помощник для игры на Pears Project")
-script_version("v0.5")
+script_version("v0.5.1")
 
 -- Библиотеки
 local encoding = require 'encoding' -- Кодировка
@@ -30,7 +30,8 @@ local mainIni = inicfg.load({ -- Дефолт значения в конфиге
         autofuel = false, -- Автозаправка
         autosto = false, -- Автопочинка в Автосервисе
         autostoexit = false, -- Автовыход с Автосервиса после Автопочинки
-        lockvehicle = false, -- При нажатии на L открыть/закрыть транспорт
+        lockvehicle = false, -- При нажатии на lockvehicle_key открыть/закрыть транспорт
+        lockvehicle_key = vkeys.VK_L,
 
         -- Прочее
         autostokolvo = 999 -- Для автопочинки в Автосервисе, если столько хп и меньше то чинит
@@ -38,27 +39,28 @@ local mainIni = inicfg.load({ -- Дефолт значения в конфиге
 }, 'Luna Helper.ini')
 
 -- Прочее
-local lunaversion = "v0.5" -- Версия скрипта для диалогов и тд
+local lunaversion = "v0.5.1" -- Версия скрипта для диалогов и тд
 local clickedSTO = false -- Для автопочинки
 local noFuel = false -- Для автозаправки
 
 -- Имгуишечка (imgui)
-u8 = encoding.UTF8
-show_main_window = imgui.ImBool(false)
-local autoLogin_imgui = imgui.ImBool(mainIni.config.login)
-local lockPlayer_imgui = imgui.ImBool(mainIni.config.lockvehicle)
-local autoFuel_imgui = imgui.ImBool(mainIni.config.autofuel)
-local autoSTO_imgui = imgui.ImBool(mainIni.config.autosto)
-local autoSTOExit_imgui = imgui.ImBool(mainIni.config.autostoexit)
-local autoSTOKolvo_imgui = imgui.ImInt(mainIni.config.autostokolvo)
-local pass_buffer_imgui = imgui.ImBuffer(256)
-pass_buffer_imgui.v = tostring(mainIni.config.password)
-local google_buffer_imgui = imgui.ImBuffer(256)
-google_buffer_imgui.v = tostring(mainIni.config.google)
-local pass_show_imgui = imgui.ImBool(false)
-local pass_show = false
-local google_show_imgui = imgui.ImBool(false)
-local google_show = false
+u8 = encoding.UTF8 -- чтобы imgui поддерживала русские символы (юзается как: u8"[ПРОИЗВОЛЬНЫЙ_ТЕКСТ]")
+show_main_window = imgui.ImBool(false) -- Показ\скрытие окна
+local autoLogin_imgui = imgui.ImBool(mainIni.config.login) -- CheckBox (далее CB - квадратик с галочкой) для автологина
+local lockPlayer_imgui = imgui.ImBool(mainIni.config.lockvehicle) -- CB для кнопки закрытия\открытия машины
+local autoFuel_imgui = imgui.ImBool(mainIni.config.autofuel) -- CB для автозаправки
+local autoSTO_imgui = imgui.ImBool(mainIni.config.autosto) -- CB для автоматической починки на СТО
+local autoSTOExit_imgui = imgui.ImBool(mainIni.config.autostoexit) -- CB для автоматического выхода с СТО после починки
+local autoSTOKolvo_imgui = imgui.ImInt(mainIni.config.autostokolvo) -- Строка с числовым значение минимального количества ХП для починки авто
+local pass_buffer_imgui = imgui.ImBuffer(256) -- Строка для хранения пароля
+pass_buffer_imgui.v = tostring(mainIni.config.password) -- Заполняем строку паролем из конфига
+local google_buffer_imgui = imgui.ImBuffer(256) -- Строка для 2FA
+google_buffer_imgui.v = tostring(mainIni.config.google) -- Заполняем строку 2FA из конфига
+local pass_show_imgui = imgui.ImBool(false) -- CB показывать ли пароль (по умолчанию пароль закрыт звёздочками (*))
+local pass_show = false -- Используется в совокупности с pass_show_imgui
+local google_show_imgui = imgui.ImBool(false) -- CB показывать ли 2FA (по умолчанию 2FA закрыт звёздочками (*))
+local google_show = false -- Используется в совокупности с google_show_imgui
+local isChangingButton = false -- Если игрок меняет кнопку закрытия\открытия ТС, то кнопка меняет своё название с "Изменить кнопку" на "Пожалуйста нажмите требуемую кнопку"
 
 -- Таблица с информацией о командах
 local commands = {
@@ -107,22 +109,42 @@ function main() -- Основная функция, подгружаемая при загрузке скрипта
         sampAddChatMessage("{00ff00}* {cd70ff}[Luna Helper] {FFFFFF}Вы запускаете скрипт в первый раз. Конфиг был успешно создан!", 0xccccccAA)
     end
     sampAddChatMessage("{00ff00}* {cd70ff}[Luna Helper] {FFFFFF}Версия скрипта {cccccc}" .. lunaversion .. " {ffffff}успешно загружена {FF9000}[ /luna ]", 0xccccccAA)
-
-    sampRegisterChatCommand("lunapass", lunapass_f) -- Пароль от аккаунта
-    sampRegisterChatCommand("lunagoogle", lunagoogle_f) -- 2FA от аккаунта
-    sampRegisterChatCommand("lunaask", lunaask_f) -- ХП для Автопочинки в Автосервисе
-
     inicfg.save(mainIni, "Luna Helper.ini") -- При запуске скрипта сохраняем конфиг (Если нет конфига, он создаётся в таком случае)
 
     while true do
         wait(0) -- Раз в 0 сек функции ниже вызываются, то есть по кд
         imgui.Process = show_main_window.v
+        if show_main_window.v == false then
+            pass_show, pass_show_imgui.v, google_show, google_show_imgui.v = false, false, false, false
+        end
         pass_buffer_imgui.v = tostring(mainIni.config.password)
         google_buffer_imgui.v = tostring(mainIni.config.google)
         autoSTOKolvo_imgui.v = mainIni.config.autostokolvo
         TextdrawSTO() -- Текстдрав СТО
         AutoLock() -- Открытие и закрытии тс при нажатии на L
     end
+end
+
+function pressNewButton() -- "Венец моего творения". Функция, которая устанавливает новую клавишу для закрытия\открытия ТС.
+    local buff = true
+    while buff do -- постоянно парсим массив vkeys, для обнаружения новой нажатой кнопки
+        wait(0) -- это база
+        if not buff then -- короче я хз, но без этой штуки он не хочет заканчивать функцию, а значит вся её идея ломается
+            break
+        else 
+            for i, value in pairs(vkeys) do -- парсим массив с кнопками
+                if isKeyJustPressed(value) then -- если кнопка была нажата, то сохраняем её в маинИни + сохраняем в файл. Парсится вёс очь быстро, так что проблем с этим нету.
+                    mainIni.config.lockvehicle_key = value
+                    SaveIni()
+                    buff = false
+                end
+            end
+        end
+    end
+    -- Разблокируем игроку движение, курсор и поменяем название кнопки на "Выбрать клавишу"
+    imgui.LockPlayer = false 
+    imgui.ShowCursor = true
+    isChangingButton = false
 end
 
 function genCode(skey) -- Генерация кода по GAuth (2FA)
@@ -144,43 +166,8 @@ function genCode(skey) -- Генерация кода по GAuth (2FA)
     return ("%06d"):format(hash)
 end
 
-function lunapass_f(arg) -- Смена пароля от аккаунта для автологина
-    if arg == "" then -- Если ничего не было введено
-        sampAddChatMessage("* {cd70ff}[Luna Helper] {FFFFFF}Изменить пароль от автологина {FF9000}[ /lunapass пароль ]", 0xccccccAA)
-        return 0
-    end
-
-    mainIni.config.password = arg -- Получаем новый пароль
-    inicfg.save(mainIni, "Luna Helper.ini") -- Сохраняем конфиг
-    sampAddChatMessage("{00ff00}* {cd70ff}[Luna Helper] {FFFFFF}Пароль изменён на {FF9000}"..arg, 0xccccccAA) -- Сообщаем, что пароль сохранён
-end
-
-function lunagoogle_f(arg) -- Смена 2FA от аккаунта для автологина
-    if arg == "" then -- Если ничего не было введено
-        sampAddChatMessage("* {cd70ff}[Luna Helper] {FFFFFF}Изменить ключ 2FA от автологина {FF9000}[ /lunapass Ключ ]", 0xccccccAA)
-        return 0
-    end
-
-    mainIni.config.google = arg -- Получаем новый 2FA
-    inicfg.save(mainIni, "Luna Helper.ini") -- Сохраняем конфиг
-    sampAddChatMessage("{00ff00}* {cd70ff}[Luna Helper] {FFFFFF}Ключ от 2FA изменён на {FF9000}"..arg, 0xccccccAA) -- Сообщаем, что 2FA сохранён
-end
-
-function lunaask_f(arg) -- Смена ХП для автопочинки в Автосервисе
-    if arg == "" then -- Если ничего не было введено
-        sampAddChatMessage("* {cd70ff}[Luna Helper] {FFFFFF}Изменить ХП для автопочинки в Автосервисе {FF9000}[ /lunaask кол-во ]", 0xccccccAA)
-        return 0
-    end
-
-    local new_hp = tonumber(arg) -- Преобразуем arg в число
-    if not new_hp then -- Проверка на случай, если ввод был нечисловым
-        sampAddChatMessage("{ff0000}* {cd70ff}[Luna Helper] {FFFFFF}Введите числовое значение!", 0xccccccAA)
-        return 0
-    end
-
-    mainIni.config.autostokolvo = new_hp -- Сохраняем преобразованное значение
-    inicfg.save(mainIni, "Luna Helper.ini") -- Сохраняем конфиг
-    sampAddChatMessage("{00ff00}* {cd70ff}[Luna Helper] {FFFFFF}ХП автопочинки изменено на {FF9000}"..new_hp, 0xccccccAA)
+function SaveIni() -- Синтаксический сахар
+    inicfg.save(mainIni, 'Luna Helper.ini')
 end
 
 function sampevents.onSendCommand(command) -- Функция для ввода различных команд
@@ -325,7 +312,7 @@ function apply_custom_style() -- Наводим красоту
 end
 apply_custom_style()
 
-function onWindowMessage(msg, wparam, lparam)
+function onWindowMessage(msg, wparam, lparam) -- Ивент, в котором мы делаем так, чтобы при открытом ImGui и нажатии на ескейп нас не кидало в меню игры + закрывалось окно imgui
     if msg == 0x100 or msg == 0x101 then
         if (wparam == vkeys.VK_ESCAPE and show_main_window.v) and not isPauseMenuActive() then
             consumeWindowMessage(true, false)
@@ -336,12 +323,13 @@ function onWindowMessage(msg, wparam, lparam)
     end
 end
 
-function imgui.OnDrawFrame()
-    if show_main_window.v then
-        local sw, sh = getScreenResolution()
-        imgui.SetNextWindowPos(imgui.ImVec2(sw / 2, sh / 2), imgui.Cond.FirstUseEver, imgui.ImVec2(0.5, 0.5))
-        imgui.SetNextWindowSize(imgui.ImVec2(650, 450), imgui.Cond.FirstUseEver)
-        imgui.Begin(u8'Luna Helper ' .. lunaversion, show_main_window)
+function imgui.OnDrawFrame() -- Ивент, который срабатывает каждый фрейм игры
+    if show_main_window.v then -- если true, то показываем окно
+        local sw, sh = getScreenResolution() -- берём разрешение окна 
+        local btn_size = imgui.ImVec2(-0.1, 0) -- размер кнопок (-0.1 означает, что по краям кнопки будет пустое пространство, например ##[Кнопка 1]##, где # - -0.1)
+        imgui.SetNextWindowPos(imgui.ImVec2(sw / 2, sh / 2), imgui.Cond.FirstUseEver, imgui.ImVec2(0.5, 0.5)) -- Позиция окна будет посередине. Чё делает imgui.Cond.FirstUseEver я хз
+        imgui.SetNextWindowSize(imgui.ImVec2(650, 450), imgui.Cond.FirstUseEver) -- Размер окна. Подбирал с помощью проб и ошибок
+        imgui.Begin(u8'Luna Helper ' .. lunaversion, show_main_window) -- Название окна + show_main_window, чтобы появился крестик сверху окошка
         if imgui.Checkbox(u8'Автологин', autoLogin_imgui) then -- Кнопка с галочкой
             mainIni.config.login = autoLogin_imgui.v
             inicfg.save(mainIni, "Luna Helper.ini") -- Сохраняем конфиг
@@ -352,15 +340,15 @@ function imgui.OnDrawFrame()
         end
         if imgui.Checkbox(u8'Автопочинка', autoSTO_imgui) then -- Кнопка с галочкой
             mainIni.config.autosto = autoSTO_imgui.v
-            if autoSTO_imgui.v == false then 
+            if autoSTO_imgui.v == false then  -- Если Автопочинка отключена, то и автовыход с неё мы тоже вырубаем
                 mainIni.config.autostoexit = false 
                 autoSTOExit_imgui.v = false
             end
             inicfg.save(mainIni, "Luna Helper.ini") -- Сохраняем конфиг
         end
-        if autoSTO_imgui.v then
+        if autoSTO_imgui.v then -- Если автопочинка включена, то только в таком случае показываем CB на автовыход с СТО  
             imgui.NewLine()
-            imgui.SameLine(30.0, 0.0)
+            imgui.SameLine(30.0, 0.0) -- отступы красивые
             if imgui.Checkbox(u8'Автовыход с СТО после починки', autoSTOExit_imgui) then
                 mainIni.config.autostoexit = autoSTOExit_imgui.v
                 inicfg.save(mainIni, "Luna Helper.ini") -- Сохраняем конфиг
@@ -371,39 +359,55 @@ function imgui.OnDrawFrame()
             mainIni.config.lockvehicle = lockPlayer_imgui.v
             inicfg.save(mainIni, "Luna Helper.ini") -- Сохраняем конфиг
         end
+        if lockPlayer_imgui.v then -- Если активированна опция по закрытию\открытию по кнопке, то показываем дополнительные настройки
+            imgui.NewLine()
+            imgui.SameLine(30.0, 0.0) -- отступы красивые
+            imgui.Text(u8'Текущая кнопка: '..vkeys.id_to_name(mainIni.config.lockvehicle_key)) -- Просто текст для понимания ситуации + vkeys.id_to_name, с помощью которого ищем человеческого название кнопки
+            if not isChangingButton then -- Если мы ещё не меняем кнопку, то выводим стандартную кнопку
+                if imgui.Button(u8'Изменить клавишу', btn_size) then -- При нажатии блокируем движение игрока и прячем курсор, чтобы он не начал шалить
+                    isChangingButton = true
+                    imgui.LockPlayer = true
+                    imgui.ShowCursor = false
+                    potok = lua_thread.create(pressNewButton) -- Отдельный поток, т.к. требуется while true
+                end
+            else
+                if imgui.Button(u8'Нажмите на требуемую клавишу', btn_size) then -- Кнопка появляется во время выбора клавиши
+                   return
+                end
+            end
+        end
         
-        imgui.Text(u8'Мин. количество ХП для починки: ')
-        imgui.SameLine(0.0, -1.0)
-        if imgui.InputInt(' ##3', autoSTOKolvo_imgui) then -- условие будет срабатывать при изменении числа
+        imgui.Text(u8'Мин. количество ХП для починки: ') -- Просто текст
+        imgui.SameLine(0.0, -1.0) -- делаем так, чтобы след. строка не перенеслась на новую строчку и как бы "дополняем" наш текст
+        if imgui.InputInt(' ##3', autoSTOKolvo_imgui) then -- условие будет срабатывать при изменении числа минимального ХП для починки
             mainIni.config.autostokolvo = autoSTOKolvo_imgui.v
-            inicfg.save(mainIni, "Luna Helper.ini")
+            inicfg.save(mainIni, "Luna Helper.ini") -- Сохраняем конфиг
         end
 
         imgui.NewLine()
 
-        imgui.Text(u8'Пароль:\t\t\t\t\t\t\t\t ') -- АХАХАХАХАХАХ найс костыль создал)))
-        imgui.SameLine(0.0, -1.0)
-        if imgui.InputText(' ##1', pass_buffer_imgui, pass_show and 0 or imgui.InputTextFlags.Password) then -- условие будет срабатывать при изменении текста
+        imgui.Text(u8'Пароль:\t\t\t\t\t\t\t\t ') -- АХАХАХАХАХАХ найс костыль создал))) (чтобы ввод пароля и 2FA был на одном уровне +-)
+        imgui.SameLine(0.0, -1.0) -- "Дополняем" текст, а не переносимся на новую строку
+        if imgui.InputText(' ##1', pass_buffer_imgui, pass_show and 0 or imgui.InputTextFlags.Password) then -- 1) условие будет срабатывать при изменении текста. 2) Если pass_show = true, то мы показываем пароль (так если 0) иначе кидаем флаг, который заставляет символы измениться на *
             mainIni.config.password = pass_buffer_imgui.v
-            inicfg.save(mainIni, "Luna Helper.ini")
+            inicfg.save(mainIni, "Luna Helper.ini") -- Сохраняем конфиг
         end
 
-        imgui.Text(u8'Код 2FA (аутентификация): ')
-        imgui.SameLine(0.0, -1.0)
-        if imgui.InputText(' ##2', google_buffer_imgui, google_show and 0 or imgui.InputTextFlags.Password) then -- условие будет срабатывать при изменении текста
+        imgui.Text(u8'Код 2FA (аутентификация): ') -- just text
+        imgui.SameLine(0.0, -1.0) -- "Дополняем" текст, а не переносимся на новую строку
+        if imgui.InputText(' ##2', google_buffer_imgui, google_show and 0 or imgui.InputTextFlags.Password) then -- 1) условие будет срабатывать при изменении текста. 2) Если google_show = true, то мы показываем 2FA (так если 0) иначе кидаем флаг, который заставляет символы измениться на *
             mainIni.config.google = google_buffer_imgui.v
-            inicfg.save(mainIni, "Luna Helper.ini")
+            inicfg.save(mainIni, "Luna Helper.ini") -- Сохраняем конфиг
         end
         if imgui.Checkbox(u8'Показать пароль', pass_show_imgui) then -- Кнопка с галочкой
             pass_show = pass_show_imgui.v
         end
-        imgui.SameLine(0.0, -1.0)
+        imgui.SameLine(0.0, -1.0) -- чтобы расположить 2 CB рядышком
         if imgui.Checkbox(u8'Показать 2FA', google_show_imgui) then -- Кнопка с галочкой
             google_show = google_show_imgui.v
         end
         
-        local btn_size = imgui.ImVec2(-0.1, 0)
-        imgui.NewLine()
+        imgui.NewLine() -- чтобы пропустить строку (для красоты)
         if imgui.Button(u8'Перезагрузить скрипт', btn_size) then -- Кнопка
             showCursor(false)
             thisScript():reload()
@@ -460,7 +464,7 @@ end
 
 function AutoLock() -- Открытие/Закрытие тс через L
     if mainIni.config.lockvehicle then
-        if isKeyJustPressed(vkeys.VK_L) and not sampIsChatInputActive() 
+        if isKeyJustPressed(mainIni.config.lockvehicle_key) and not sampIsChatInputActive() 
         and not sampIsDialogActive() and not isSampfuncsConsoleActive() then -- Проверка чтобы не срабатывала если чат открыт и прочее
             sampSendChat("/lock") -- Если всё ок, пишем в чат вместо игрока /lock
         end
