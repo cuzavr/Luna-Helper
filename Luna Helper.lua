@@ -5,7 +5,7 @@
 script_name("Luna Helper")
 script_author("cuzavr")
 script_description("Помощник для игры на Pears Project")
-script_version("v0.5.1")
+script_version("v0.5.2")
 
 -- Библиотеки
 local encoding = require 'encoding' -- Кодировка
@@ -39,7 +39,7 @@ local mainIni = inicfg.load({ -- Дефолт значения в конфиге
 }, 'Luna Helper.ini')
 
 -- Прочее
-local lunaversion = "v0.5.1" -- Версия скрипта для диалогов и тд
+local lunaversion = "v0.5.2" -- Версия скрипта для диалогов и тд
 local clickedSTO = false -- Для автопочинки
 local noFuel = false -- Для автозаправки
 
@@ -100,8 +100,8 @@ local commands = {
 -- Функции
 function main() -- Основная функция, подгружаемая при загрузке скрипта
     while not isSampAvailable() do wait(0) end
-    local ip, port = sampGetCurrentServerAddress()
-    if ip ~= "146.59.94.128" and port ~= 7777 then -- Pears Project
+    local ip = sampGetCurrentServerAddress()
+    if ip ~= "5.252.35.11" then -- Pears Project
         thisScript():unload() -- Отгружаем скрипт, если юзер заходит на другой сервер
         return 0
     end
@@ -131,7 +131,7 @@ function pressNewButton() -- "Венец моего творения". Функция, которая устанавлив
         wait(0) -- это база
         if not buff then -- короче я хз, но без этой штуки он не хочет заканчивать функцию, а значит вся её идея ломается
             break
-        else 
+        else
             for i, value in pairs(vkeys) do -- парсим массив с кнопками
                 if isKeyJustPressed(value) then -- если кнопка была нажата, то сохраняем её в маинИни + сохраняем в файл. Парсится вёс очь быстро, так что проблем с этим нету.
                     mainIni.config.lockvehicle_key = value
@@ -142,7 +142,7 @@ function pressNewButton() -- "Венец моего творения". Функция, которая устанавлив
         end
     end
     -- Разблокируем игроку движение, курсор и поменяем название кнопки на "Выбрать клавишу"
-    imgui.LockPlayer = false 
+    imgui.LockPlayer = false
     imgui.ShowCursor = true
     isChangingButton = false
 end
@@ -155,7 +155,7 @@ function genCode(skey) -- Генерация кода по GAuth (2FA)
         bit.band(value, 0xFF000000) / 0x1000000,
         bit.band(value, 0xFF0000) / 0x10000,
         bit.band(value, 0xFF00) / 0x100,
-        bit.band(value, 0xFF)) 
+        bit.band(value, 0xFF))
     local hash = sha1.hmac_binary(skey, value)
     local offset = bit.band(hash:sub(-1):byte(1, 1), 0xF)
     local function bytesToInt(a, b, c, d)
@@ -427,7 +427,6 @@ function imgui.OnDrawFrame() -- Ивент, который срабатывает каждый фрейм игры
         imgui.End()
     end
 end
-
 
 function TextdrawSTO() -- Автопочинка текстдрав
     if mainIni.config.autosto then
